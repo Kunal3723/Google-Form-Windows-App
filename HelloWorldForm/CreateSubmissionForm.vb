@@ -2,12 +2,16 @@
 Imports System.Net.Http
 Imports System.Text
 Imports Newtonsoft.Json
+Imports System.Text.RegularExpressions
+
 Public Class CreateSubmissionForm
     Private WithEvents stopwatch As New Stopwatch()
     Private WithEvents timer As New Timer()
+
     Private Sub CreateSubmissionForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         timer.Interval = 100
         Me.KeyPreview = True
+
         Dim btnToggleStopwatch As New Button()
         btnToggleStopwatch.Name = "btnToggleStopwatch"
         btnToggleStopwatch.Text = "TOGGLE STOPWATCH (CTRL+T)"
@@ -34,10 +38,45 @@ Public Class CreateSubmissionForm
         AddHandler createPhoneNum.TextChanged, AddressOf CheckFields
         AddHandler createGithubLink.TextChanged, AddressOf CheckFields
         AddHandler lblTime.TextChanged, AddressOf CheckFields
-
     End Sub
 
     Private Async Sub Submit_Click(sender As Object, e As EventArgs) Handles btnSubmit.Click
+        ' Validation
+        Dim isValid As Boolean = True
+        Dim errorMessage As String = ""
+
+        ' Check if name is at least 3 characters long
+        If createName.Text.Length < 3 Then
+            isValid = False
+            errorMessage = "Name must be at least 3 characters long."
+        End If
+
+        ' Check if email is valid
+        Dim emailPattern As String = "^[^@\s]+@[^@\s]+\.[^@\s]+$"
+        If Not Regex.IsMatch(createEmail.Text, emailPattern) Then
+            isValid = False
+            If errorMessage <> "" Then
+                errorMessage &= vbCrLf
+            End If
+            errorMessage &= "Please enter a valid email address."
+        End If
+
+        Dim phonePattern As String = "^\d{10}$"
+        If Not Regex.IsMatch(createPhoneNum.Text, phonePattern) Then
+            isValid = False
+            If errorMessage <> "" Then
+                errorMessage &= vbCrLf
+            End If
+            errorMessage &= "Please enter a valid 10-digit phone number."
+        End If
+
+        ' Show error message if validation fails
+        If Not isValid Then
+            MessageBox.Show(errorMessage, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
+        ' Proceed with submission if validation passes
         Dim Name As String = createName.Text
         Dim Email As String = createEmail.Text
         Dim PhoneNum As String = createPhoneNum.Text
@@ -45,17 +84,14 @@ Public Class CreateSubmissionForm
         Dim lblTime As TextBox = DirectCast(Me.Controls("lblTime"), TextBox)
         Dim StopwatchTime As String = lblTime.Text
 
-        stopwatch.Stop()
-        timer.Stop()
-
         ' Create the submission object
         Dim submission As New Dictionary(Of String, String) From {
-        {"name", Name},
-        {"email", Email},
-        {"phone", PhoneNum},
-        {"github_link", GithubLink},
-        {"stopwatch_time", StopwatchTime}
-    }
+            {"name", Name},
+            {"email", Email},
+            {"phone", PhoneNum},
+            {"github_link", GithubLink},
+            {"stopwatch_time", StopwatchTime}
+        }
 
         ' Convert the submission object to JSON
         Dim json As String = JsonConvert.SerializeObject(submission)
@@ -74,6 +110,8 @@ Public Class CreateSubmissionForm
 
                 ' Check if the response is successful
                 If response.IsSuccessStatusCode Then
+                    stopwatch.Stop()
+                    timer.Stop()
                     MessageBox.Show("Submission successful!")
                 Else
                     MessageBox.Show("Error: Unable to submit the data to the backend.")
@@ -118,16 +156,16 @@ Public Class CreateSubmissionForm
     End Sub
 
     Private Sub Form_KeyDown(sender As Object, e As KeyEventArgs) Handles MyBase.KeyDown
-        ' Check for CTRL+Y key combination
+        ' Check for CTRL+T key combination
         Dim btnToggleStopwatch As Button = DirectCast(Me.Controls("btnToggleStopwatch"), Button)
         If e.Control AndAlso e.KeyCode = Keys.T Then
             Stopwatch_Click(btnToggleStopwatch, EventArgs.Empty)
         End If
 
+        ' Check for CTRL+S key combination
         If e.Control AndAlso e.KeyCode = Keys.S Then
             Submit_Click(btnSubmit, EventArgs.Empty)
         End If
-
     End Sub
 
 End Class
